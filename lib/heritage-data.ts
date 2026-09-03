@@ -24,7 +24,9 @@ export type HeritageSite = {
   subItems?: SubItem[];
 };
 
-const p = (...names: string[]) => names.map((name) => `/photos/${name}.jpg`);
+const asset = (path: string) => `${import.meta.env.BASE_URL || '/'}${path}`;
+const p = (...names: string[]) =>
+  names.map((name) => asset(`photos/${name}.jpg`));
 
 export const officialSource =
   'https://wlj.nanjing.gov.cn/zwgk/wwbhml/202501/P020251127641809511607.pdf';
@@ -752,7 +754,7 @@ export const pendingConfirmations = [
   {
     id: 'wu-tombs',
     siteId: 'mingxiaoling',
-    photo: '/photos/IMG_0413.jpg',
+    photo: asset('photos/IMG_0413.jpg'),
     title: '吴良墓，还是吴桢墓？',
     note: '照片中的文保碑同时写有“吴良、吴桢墓”，仅凭照片无法判断你实际走到哪一座。',
     options: ['吴良墓', '吴桢墓', '两处都去了'],
@@ -760,7 +762,7 @@ export const pendingConfirmations = [
   {
     id: 'jiangning-stone-1',
     siteId: 'southern-dynasty-stone',
-    photo: '/photos/IMG_7192.jpg',
+    photo: asset('photos/IMG_7192.jpg'),
     title: '这处失考墓石刻的子项名称',
     note: '碑名在原片中距离较远；结合位置推测为侯村失考墓石刻，但需要你确认。',
     options: ['侯村失考墓石刻', '梁建安敏侯萧正立墓石刻', '暂不确定'],
@@ -768,7 +770,7 @@ export const pendingConfirmations = [
   {
     id: 'jiangning-stone-2',
     siteId: 'southern-dynasty-stone',
-    photo: '/photos/IMG_7910.jpg',
+    photo: asset('photos/IMG_7910.jpg'),
     title: '方旗庙失考墓石刻？',
     note: '照片只清楚拍到“南京南朝陵墓石刻”总名；按拍摄坐标推测为方旗庙失考墓石刻。',
     options: ['方旗庙失考墓石刻', '其他子项', '暂不确定'],
