@@ -3,6 +3,44 @@ import { useEffect, useRef } from 'react';
 import type { HeritageSite, VisitState } from '@/lib/heritage-data';
 
 type MappedSite = HeritageSite & { status: VisitState };
+
+type MapPoint = {
+  id: string;
+  parentId: string;
+  name: string;
+  parentName: string;
+  address: string;
+  lat: number;
+  lng: number;
+  status: VisitState;
+};
+
+function mapPoints(sites: MappedSite[]): MapPoint[] {
+  return sites.flatMap((site) => {
+    if (!site.subItems?.length) {
+      return [{
+        id: site.id,
+        parentId: site.id,
+        name: site.name,
+        parentName: site.name,
+        address: `${site.district} · ${site.address}`,
+        lat: site.lat,
+        lng: site.lng,
+        status: site.status,
+      }];
+    }
+    return site.subItems.map((item, index) => ({
+      id: `${site.id}-${index}`,
+      parentId: site.id,
+      name: item.name,
+      parentName: site.name,
+      address: item.address || site.district,
+      lat: item.lat,
+      lng: item.lng,
+      status: item.visited ? 'visited' : item.uncertain ? 'partial' : 'unvisited',
+    }));
+  });
+}
 export function HeritageMap({
   sites,
   selectedId,
@@ -14,13 +52,16 @@ export function HeritageMap({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const selectRef = useRef(onSelect);
-  selectRef.current = onSelect;
+  useEffect(() => {
+    selectRef.current = onSelect;
+  }, [onSelect]);
   useEffect(() => {
     if (!container.current) return;
     let cancelled = false;
     let dispose: (() => void) | undefined;
     void import('leaflet').then(({ default: L }) => {
       if (cancelled || !container.current) return;
+      const points = mapPoints(sites);
       const map = L.map(container.current, {
         zoomControl: false,
         attributionControl: true,
@@ -32,26 +73,26 @@ export function HeritageMap({
         maxZoom: 18,
       }).addTo(map);
       const bounds = L.latLngBounds([]);
-      sites.forEach((site) => {
+      points.forEach((point) => {
         const icon = L.divIcon({
           className: 'heritage-marker-wrap',
-          html: `<span class="heritage-marker ${site.status} ${site.id === selectedId ? 'selected' : ''}"></span>`,
+          html: `<span class="heritage-marker ${point.status} ${point.parentId === selectedId ? 'selected' : ''}"></span>`,
           iconSize: [26, 26],
           iconAnchor: [13, 13],
         });
-        const marker = L.marker([site.lat, site.lng], { icon })
+        const marker = L.marker([point.lat, point.lng], { icon })
           .addTo(map)
           .bindTooltip(
-            `<strong>${site.name}</strong><br/><span>${site.district} · ${site.status === 'visited' ? '已到访' : site.status === 'partial' ? '部分到访' : '未到访'}</span>`,
+            `<strong>${point.name}</strong><br/><span>${point.parentName !== point.name ? `${point.parentName} · ` : ''}${point.status === 'visited' ? '已到访' : point.status === 'partial' ? '待确认' : '未到访'}</span><br/><small>${point.address}</small>`,
             { direction: 'top', offset: [0, -9] },
           );
-        marker.on('click', () => selectRef.current(site.id));
-        bounds.extend([site.lat, site.lng]);
+        marker.on('click', () => selectRef.current(point.parentId));
+        bounds.extend([point.lat, point.lng]);
       });
-      if (sites.length > 1)
+      if (points.length > 1)
         map.fitBounds(bounds, { padding: [42, 42], maxZoom: 12 });
-      else if (sites.length === 1)
-        map.setView([sites[0].lat, sites[0].lng], 14);
+      else if (points.length === 1)
+        map.setView([points[0].lat, points[0].lng], 14);
       dispose = () => map.remove();
     });
     return () => {

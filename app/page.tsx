@@ -62,7 +62,7 @@ function resolvedSite(site: HeritageSite, answers: Answers): HeritageSite {
     } else if (answer && answer !== '暂不确定') confirmed.add(answer);
   }
   if (site.id === 'southern-dynasty-stone') {
-    for (const id of ['jiangning-stone-1', 'jiangning-stone-2']) {
+    for (const id of ['jiangning-stone-2']) {
       const answer = answers[id];
       if (answer && !['暂不确定', '其他子项'].includes(answer))
         confirmed.add(answer);
@@ -132,9 +132,12 @@ export default function Home() {
   const visibleSites = resolved.filter((site) => {
     const status = getVisitState(site);
     const normalized = query.trim().toLowerCase();
+    const childText = site.subItems
+      ?.map((item) => `${item.name}${item.address || ''}`)
+      .join('');
     return (
       (!normalized ||
-        `${site.name}${site.district}${site.era}${site.address}`
+        `${site.name}${site.district}${site.era}${site.address}${childText || ''}`
           .toLowerCase()
           .includes(normalized)) &&
       (filter === 'all' || status === filter) &&
@@ -142,6 +145,11 @@ export default function Home() {
     );
   });
   const selectedSite = resolved.find((site) => site.id === selectedId) ?? null;
+  const selectedOfficialSubItems =
+    selectedSite?.subItems?.filter((item) => item.official !== false) ?? [];
+  const selectedVisitedPointCount = selectedOfficialSubItems.filter(
+    (item) => item.visited,
+  ).length;
 
   function saveAnswer(id: string, value: string) {
     setAnswers((current) => {
@@ -258,7 +266,10 @@ export default function Home() {
           <div className="site-list">
             {visibleSites.map((site) => {
               const status = getVisitState(site);
-              const visitedPoints = site.subItems?.filter(
+              const officialPoints = site.subItems?.filter(
+                (item) => item.official !== false,
+              );
+              const visitedPoints = officialPoints?.filter(
                 (item) => item.visited,
               ).length;
               return (
@@ -275,7 +286,7 @@ export default function Home() {
                     </small>
                     <em>
                       {site.subItems
-                        ? `${visitedPoints}/${site.subItems.length} 个子项 · ${statusCopy[status].label}`
+                        ? `${visitedPoints}/${officialPoints?.length} 个子项 · ${statusCopy[status].label}`
                         : statusCopy[status].note}
                     </em>
                   </span>
@@ -328,7 +339,7 @@ export default function Home() {
           </div>
           <div className="map-note">
             <Layers3 />
-            地图点位为文保单位代表位置；多点项目请打开详情查看子项。
+            多点项目已逐个标出子项；南京城墙按重要门址、城段和水关展示。
           </div>
         </section>
       </section>
@@ -367,17 +378,14 @@ export default function Home() {
                     <div className="section-title">
                       <span>子项进度</span>
                       <b>
-                        {
-                          selectedSite.subItems.filter((item) => item.visited)
-                            .length
-                        }
-                        /{selectedSite.subItems.length}
+                        {selectedVisitedPointCount}/
+                        {selectedOfficialSubItems.length}
                       </b>
                     </div>
                     <div className="point-progress">
                       <i
                         style={{
-                          width: `${(selectedSite.subItems.filter((item) => item.visited).length / selectedSite.subItems.length) * 100}%`,
+                          width: `${(selectedVisitedPointCount / selectedOfficialSubItems.length) * 100}%`,
                         }}
                       />
                     </div>
@@ -385,13 +393,13 @@ export default function Home() {
                       {selectedSite.subItems.map((item) => (
                         <div
                           key={item.name}
-                          className={
+                          className={`${
                             item.visited
                               ? 'done'
                               : item.uncertain
                                 ? 'uncertain'
                                 : ''
-                          }
+                          }${item.official === false ? ' extra' : ''}`}
                         >
                           {item.visited ? (
                             <Check />
@@ -400,7 +408,12 @@ export default function Home() {
                           ) : (
                             <Circle />
                           )}
-                          <span>{item.name}</span>
+                          <span>
+                            {item.name}
+                            {(item.address || item.note) && (
+                              <small>{item.note || item.address}</small>
+                            )}
+                          </span>
                           {item.uncertain && (
                             <button onClick={() => setConfirmOpen(true)}>
                               确认
@@ -448,7 +461,9 @@ export default function Home() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="confirm-dialog">
           <DialogHeader>
-            <DialogTitle>请你确认 3 组子项</DialogTitle>
+            <DialogTitle>
+              请你确认 {pendingConfirmations.length} 组子项
+            </DialogTitle>
             <DialogDescription>
               这些照片能确认到国保单位，但无法仅靠碑面或坐标准确判定具体子项。选择会自动保存在当前浏览器。
             </DialogDescription>

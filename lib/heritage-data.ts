@@ -4,6 +4,12 @@ export type SubItem = {
   name: string;
   visited?: boolean;
   uncertain?: boolean;
+  lat: number;
+  lng: number;
+  address?: string;
+  photos?: string[];
+  note?: string;
+  official?: boolean;
 };
 
 export type HeritageSite = {
@@ -120,16 +126,16 @@ export const sites: HeritageSite[] = [
     lng: 118.8347,
     photos: p('IMG_0413', 'IMG_2469', 'IMG_3374', 'IMG_3375'),
     subItems: [
-      { name: '明孝陵' },
-      { name: '明东陵' },
-      { name: '徐达墓' },
-      { name: '李文忠墓' },
-      { name: '吴良墓', uncertain: true },
-      { name: '吴桢墓', uncertain: true },
-      { name: '常遇春墓', visited: true },
-      { name: '仇成墓石刻', visited: true },
-      { name: '邓愈墓', visited: true },
-      { name: '李杰墓' },
+      { name: '明孝陵', lat: 32.062315, lng: 118.834704, address: '紫金山南麓独龙阜玩珠峰下' },
+      { name: '明东陵', lat: 32.0643, lng: 118.8384, address: '紫金山南麓' },
+      { name: '徐达墓', lat: 32.077813, lng: 118.817759, address: '板仓街190号' },
+      { name: '李文忠墓', lat: 32.081133, lng: 118.823327, address: '蒋王庙街6号' },
+      { name: '吴良墓', uncertain: true, lat: 32.067956, lng: 118.813836, address: '板仓街3号', photos: p('IMG_0413') },
+      { name: '吴桢墓', uncertain: true, lat: 32.067956, lng: 118.813836, address: '板仓街3号', photos: p('IMG_0413') },
+      { name: '常遇春墓', visited: true, lat: 32.063706, lng: 118.814981, address: '太平门外白马村', photos: p('IMG_3374') },
+      { name: '仇成墓石刻', visited: true, lat: 32.063572, lng: 118.815286, address: '太平门外白马村', photos: p('IMG_3375') },
+      { name: '邓愈墓', visited: true, lat: 31.997078, lng: 118.762931, address: '邓府山石刻园内', photos: p('IMG_2469') },
+      { name: '李杰墓', lat: 32.001888, lng: 118.779209, address: '雨花台烈士陵园东岗东南侧' },
     ],
   },
   {
@@ -208,6 +214,30 @@ export const sites: HeritageSite[] = [
       'IMG_6517',
       'IMG_6843',
     ),
+    subItems: [
+      { name: '中华门（聚宝门）', lat: 32.008795, lng: 118.769331, address: '中华门瓮城' },
+      { name: '水西门（三山门）遗址', lat: 32.0269, lng: 118.7585, address: '水西门广场一带' },
+      { name: '汉西门（石城门）遗址', lat: 32.040662, lng: 118.743563, address: '汉中门市民广场' },
+      { name: '清凉门', visited: true, lat: 32.049728, lng: 118.752097, photos: p('IMG_6317') },
+      { name: '定淮门遗址', lat: 32.0677, lng: 118.7441, address: '定淮门大街一带' },
+      { name: '仪凤门（兴中门）', visited: true, lat: 32.093822, lng: 118.742103, address: '阅江楼景区南侧', photos: p('IMG_3174') },
+      { name: '钟阜门遗址', lat: 32.0995, lng: 118.7559, address: '钟阜路一带' },
+      { name: '金川门遗址', lat: 32.1019, lng: 118.7705, address: '金川门外街一带' },
+      { name: '神策门（和平门）', visited: true, lat: 32.090364, lng: 118.781844, photos: p('IMG_3163') },
+      { name: '太平门遗址', lat: 32.060026, lng: 118.807875, address: '龙蟠路太平门一带' },
+      { name: '中山门（朝阳门原址）', visited: true, lat: 32.040722, lng: 118.820992, photos: p('IMG_2116'), note: '照片碑面标注南京城墙原白下段' },
+      { name: '光华门（正阳门）遗址', lat: 32.0254, lng: 118.8126, address: '御道街与大光路一带' },
+      { name: '通济门遗址', lat: 32.0209, lng: 118.7955, address: '龙蟠中路与通济门一带' },
+      { name: '玄武门', visited: true, lat: 32.072617, lng: 118.782172, photos: p('IMG_6843') },
+      { name: '解放门（台城段）', visited: true, lat: 32.064786, lng: 118.791244, address: '解放门至玄武门城段', photos: p('IMG_0917') },
+      { name: '挹江门', visited: true, lat: 32.088878, lng: 118.741403, photos: p('IMG_3182') },
+      { name: '武定门', lat: 32.012561, lng: 118.795857, address: '长乐路武定门公园' },
+      { name: '集庆门段', visited: true, lat: 32.0215, lng: 118.763108, photos: p('IMG_4093') },
+      { name: '东水关', visited: true, lat: 32.025269, lng: 118.793717, photos: p('IMG_5286') },
+      { name: '西水关遗址', lat: 32.0234, lng: 118.7551, address: '西水关一带' },
+      { name: '武庙闸', visited: true, lat: 32.064383, lng: 118.793975, photos: p('IMG_0203') },
+      { name: '城北段遗迹', visited: true, lat: 32.091311, lng: 118.766664, photos: p('IMG_6517') },
+    ],
   },
   {
     id: 'qixia-pagoda',
@@ -322,23 +352,24 @@ export const sites: HeritageSite[] = [
       'IMG_7910',
     ),
     subItems: [
-      { name: '徐家村失考墓石刻', visited: true },
-      { name: '梁桂阳简王萧融墓石刻', visited: true },
-      { name: '梁安成康王萧秀墓石刻', visited: true },
-      { name: '梁始兴忠武王萧憺墓石刻', visited: true },
-      { name: '梁吴平忠侯萧景墓石刻' },
-      { name: '梁鄱阳忠烈王萧恢墓石刻', visited: true },
-      { name: '梁临川靖惠王萧宏墓石刻', visited: true },
-      { name: '陈文帝陈蒨永宁陵石刻', visited: true },
-      { name: '北家边失考墓石刻' },
-      { name: '梁建安敏侯萧正立墓石刻' },
-      { name: '陈武帝陈霸先万安陵石刻', visited: true },
-      { name: '宋武帝刘裕初宁陵石刻', visited: true },
-      { name: '宋墅失考墓石刻', visited: true },
-      { name: '侯村失考墓石刻', uncertain: true },
-      { name: '方旗庙失考墓石刻', uncertain: true },
-      { name: '耿岗失考墓石刻', visited: true },
-      { name: '萧伟墓石刻', visited: true },
+      { name: '徐家村失考墓石刻', visited: true, lat: 32.144367, lng: 118.840522, photos: p('IMG_7680') },
+      { name: '梁桂阳简王萧融墓石刻', visited: true, lat: 32.153208, lng: 118.925208, photos: p('IMG_5063') },
+      { name: '梁安成康王萧秀墓石刻', visited: true, lat: 32.143978, lng: 118.917289, photos: p('IMG_5086') },
+      { name: '梁始兴忠武王萧憺墓石刻', visited: true, lat: 32.135192, lng: 118.903022, photos: p('IMG_5128') },
+      { name: '梁吴平忠侯萧景墓石刻', lat: 32.1515, lng: 118.9405, address: '栖霞大道与十月村路交叉口南侧' },
+      { name: '梁鄱阳忠烈王萧恢墓石刻', visited: true, lat: 32.141589, lng: 118.912728, photos: p('IMG_5112') },
+      { name: '梁临川靖惠王萧宏墓石刻', visited: true, lat: 32.0878, lng: 118.915406, photos: p('IMG_5163') },
+      { name: '梁新渝宽侯萧暎墓石刻', lat: 32.1455, lng: 118.9075, address: '炼西路与宏运路交叉口南侧' },
+      { name: '陈文帝陈蒨永宁陵石刻', visited: true, lat: 32.137622, lng: 118.926286, photos: p('IMG_5187') },
+      { name: '北家边失考墓石刻', lat: 32.1248, lng: 118.8812, address: '仙新路与恒飞路交叉口东侧' },
+      { name: '梁建安敏侯萧正立墓石刻', lat: 31.9535, lng: 118.907, address: '江苏海事职业技术学院内' },
+      { name: '陈武帝陈霸先万安陵石刻', visited: true, lat: 31.966672, lng: 118.880181, photos: p('IMG_7199') },
+      { name: '宋武帝刘裕初宁陵石刻', visited: true, lat: 32.064178, lng: 118.921989, photos: p('IMG_5179') },
+      { name: '宋墅失考墓石刻', visited: true, lat: 31.936567, lng: 118.904617, photos: p('IMG_7179') },
+      { name: '侯村失考墓石刻', visited: true, lat: 31.943769, lng: 118.892831, photos: p('IMG_7165') },
+      { name: '方旗庙失考墓石刻', uncertain: true, lat: 31.849942, lng: 118.595719, photos: p('IMG_7910') },
+      { name: '耿岗失考墓石刻', visited: true, lat: 31.945453, lng: 118.904144, photos: p('IMG_7192') },
+      { name: '萧伟墓石刻（现场文保碑）', visited: true, lat: 32.153661, lng: 118.891656, photos: p('IMG_7805'), official: false, note: '现场文保碑名称，不计入当前官方名录的17个子项' },
     ],
   },
   {
@@ -352,8 +383,8 @@ export const sites: HeritageSite[] = [
     lng: 118.954,
     photos: p('IMG_1844', 'IMG_1853'),
     subItems: [
-      { name: '千佛崖石窟', visited: true },
-      { name: '明征君碑', visited: true },
+      { name: '千佛崖石窟', visited: true, lat: 32.153847, lng: 118.954886, photos: p('IMG_1844') },
+      { name: '明征君碑', visited: true, lat: 32.154353, lng: 118.953164, photos: p('IMG_1853') },
     ],
   },
   {
@@ -385,12 +416,12 @@ export const sites: HeritageSite[] = [
       'IMG_2590',
     ),
     subItems: [
-      { name: '中山陵' },
-      { name: '邓演达墓', visited: true },
-      { name: '廖仲恺何香凝墓', visited: true },
-      { name: '谭延闿墓', visited: true },
-      { name: '国民革命军阵亡将士公墓', visited: true },
-      { name: '中山陵附属革命历史图书馆' },
+      { name: '中山陵', lat: 32.06018, lng: 118.84854 },
+      { name: '邓演达墓', visited: true, lat: 32.056972, lng: 118.8629, photos: p('IMG_2586') },
+      { name: '廖仲恺何香凝墓', visited: true, lat: 32.057311, lng: 118.824469, photos: p('IMG_0785') },
+      { name: '谭延闿墓', visited: true, lat: 32.057036, lng: 118.863403, photos: p('IMG_2584') },
+      { name: '国民革命军阵亡将士公墓', visited: true, lat: 32.0578, lng: 118.8616, photos: p('IMG_2578', 'IMG_2580', 'IMG_2590') },
+      { name: '中山陵附属革命历史图书馆', lat: 32.0601, lng: 118.8464 },
     ],
   },
   {
@@ -458,15 +489,15 @@ export const sites: HeritageSite[] = [
     lng: 118.840431,
     photos: p('IMG_0994', 'IMG_2130'),
     subItems: [
-      { name: '国民政府考试院旧址' },
-      { name: '国民政府主席官邸旧址', visited: true },
-      { name: '国民党中央监察委员会办公楼旧址', visited: true },
-      { name: '国民党中央党史史料陈列馆旧址' },
-      { name: '国民政府外交部旧址' },
-      { name: '国民政府最高法院旧址' },
-      { name: '国民政府行政院旧址' },
-      { name: '国民政府交通部旧址' },
-      { name: '临时政府参议院旧址' },
+      { name: '国民政府考试院旧址', lat: 32.0596, lng: 118.7938, address: '北京东路41、43号' },
+      { name: '国民政府主席官邸旧址', visited: true, lat: 32.048764, lng: 118.840431, address: '中山陵9号', photos: p('IMG_0994') },
+      { name: '国民党中央监察委员会办公楼旧址', visited: true, lat: 32.041539, lng: 118.816331, address: '中山东路311号', photos: p('IMG_2130') },
+      { name: '国民党中央党史史料陈列馆旧址', lat: 32.0423, lng: 118.8069, address: '中山东路309号' },
+      { name: '国民政府外交部旧址', lat: 32.0616, lng: 118.7762, address: '中山北路32号' },
+      { name: '国民政府最高法院旧址', lat: 32.0683, lng: 118.7725, address: '中山北路101号' },
+      { name: '国民政府行政院旧址', lat: 32.0806, lng: 118.7568, address: '中山北路252、254号' },
+      { name: '国民政府交通部旧址', lat: 32.0872, lng: 118.7514, address: '中山北路303号' },
+      { name: '临时政府参议院旧址', lat: 32.0717, lng: 118.7816, address: '湖南路10号' },
     ],
   },
   {
@@ -513,8 +544,8 @@ export const sites: HeritageSite[] = [
     lng: 118.775742,
     photos: p('IMG_0921'),
     subItems: [
-      { name: '金陵大学旧址', visited: true },
-      { name: '汇文书院钟楼' },
+      { name: '金陵大学旧址', visited: true, lat: 32.057372, lng: 118.775742, address: '汉口路22号', photos: p('IMG_0921') },
+      { name: '汇文书院钟楼', lat: 32.0717, lng: 118.7768, address: '中山路169号' },
     ],
   },
   {
@@ -538,23 +569,23 @@ export const sites: HeritageSite[] = [
     lng: 118.7396,
     photos: p('IMG_3177', 'IMG_5289', 'IMG_7376'),
     subItems: [
-      { name: '北极阁' },
-      { name: '中山陵西洼子村' },
-      { name: '正觉寺', visited: true },
-      { name: '上新河' },
-      { name: '江东门' },
-      { name: '汉中门外' },
-      { name: '煤炭港' },
-      { name: '中山码头' },
-      { name: '鱼雷营' },
-      { name: '草鞋峡' },
-      { name: '挹江门', visited: true },
-      { name: '金陵大学' },
-      { name: '清凉山' },
-      { name: '五台山', visited: true },
-      { name: '普德寺' },
-      { name: '花神庙' },
-      { name: '燕子矶' },
+      { name: '北极阁', lat: 32.0589, lng: 118.7915, address: '进香河路与北京东路交叉口一带' },
+      { name: '中山陵西洼子村', lat: 32.0615, lng: 118.8575, address: '中山陵园风景区西洼子村' },
+      { name: '正觉寺', visited: true, lat: 32.016347, lng: 118.790542, photos: p('IMG_5289') },
+      { name: '上新河', lat: 32.010307, lng: 118.700569 },
+      { name: '江东门', lat: 32.037133, lng: 118.740827 },
+      { name: '汉中门外', lat: 32.0415, lng: 118.7445 },
+      { name: '煤炭港', lat: 32.104482, lng: 118.741224 },
+      { name: '中山码头', lat: 32.094526, lng: 118.730158 },
+      { name: '鱼雷营', lat: 32.119444, lng: 118.758952 },
+      { name: '草鞋峡', lat: 32.11863, lng: 118.766349 },
+      { name: '挹江门', visited: true, lat: 32.090286, lng: 118.741333, photos: p('IMG_3177') },
+      { name: '金陵大学', lat: 32.0571, lng: 118.7749, address: '南秀村5号院内' },
+      { name: '清凉山', lat: 32.058851, lng: 118.754777 },
+      { name: '五台山', visited: true, lat: 32.050297, lng: 118.767708, photos: p('IMG_7376') },
+      { name: '普德寺', lat: 32.002421, lng: 118.770495 },
+      { name: '花神庙', lat: 31.989114, lng: 118.768175 },
+      { name: '燕子矶', lat: 32.149671, lng: 118.813401 },
     ],
   },
   {
@@ -694,7 +725,10 @@ export const sites: HeritageSite[] = [
     address: '傅后岗66号、高云岭29号',
     lat: 32.0661,
     lng: 118.7796,
-    subItems: [{ name: '傅后岗66号' }, { name: '高云岭29号' }],
+    subItems: [
+      { name: '傅后岗66号', lat: 32.0684, lng: 118.7845 },
+      { name: '高云岭29号', lat: 32.0666, lng: 118.7808 },
+    ],
   },
   {
     id: 'liji-lane',
@@ -740,8 +774,9 @@ export const sites: HeritageSite[] = [
 
 export function getVisitState(site: HeritageSite): VisitState {
   if (site.subItems?.length) {
-    const visited = site.subItems.filter((item) => item.visited).length;
-    if (visited === site.subItems.length) return 'visited';
+    const officialItems = site.subItems.filter((item) => item.official !== false);
+    const visited = officialItems.filter((item) => item.visited).length;
+    if (visited === officialItems.length) return 'visited';
     if (visited > 0 || site.photos?.length) return 'partial';
     return 'unvisited';
   }
@@ -758,14 +793,6 @@ export const pendingConfirmations = [
     title: '吴良墓，还是吴桢墓？',
     note: '照片中的文保碑同时写有“吴良、吴桢墓”，仅凭照片无法判断你实际走到哪一座。',
     options: ['吴良墓', '吴桢墓', '两处都去了'],
-  },
-  {
-    id: 'jiangning-stone-1',
-    siteId: 'southern-dynasty-stone',
-    photo: asset('photos/IMG_7192.jpg'),
-    title: '这处失考墓石刻的子项名称',
-    note: '碑名在原片中距离较远；结合位置推测为侯村失考墓石刻，但需要你确认。',
-    options: ['侯村失考墓石刻', '梁建安敏侯萧正立墓石刻', '暂不确定'],
   },
   {
     id: 'jiangning-stone-2',
