@@ -53,6 +53,7 @@ const statusCopy: Record<VisitState, { label: string; note: string }> = {
 function resolvedSite(site: HeritageSite, answers: Answers): HeritageSite {
   if (!site.subItems) return site;
   const confirmed = new Set<string>();
+  const wuAnswered = Boolean(answers['wu-tombs']);
   if (site.id === 'mingxiaoling') {
     const answer = answers['wu-tombs'];
     if (answer === '两处都去了') {
@@ -72,7 +73,10 @@ function resolvedSite(site: HeritageSite, answers: Answers): HeritageSite {
     subItems: site.subItems.map((item) => ({
       ...item,
       visited: item.visited || confirmed.has(item.name),
-      uncertain: item.uncertain && !confirmed.has(item.name),
+      uncertain:
+        item.uncertain &&
+        !confirmed.has(item.name) &&
+        !(site.id === 'mingxiaoling' && wuAnswered),
     })),
   };
 }
