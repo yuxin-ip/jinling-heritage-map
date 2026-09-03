@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: '金陵访古图｜我的南京国保足迹',
   description:
     '在南京地图上查看已到访、部分到访与尚未到访的全国重点文物保护单位。',
+  openGraph: {
+    title: '金陵访古图｜我的南京国保足迹',
+    description: '55处112点，记录我与南京全国重点文物保护单位的相遇。',
+    images: ['/og.jpg'],
+  },
 };
 
 export default function RootLayout({
