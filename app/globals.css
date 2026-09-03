@@ -666,6 +666,18 @@
   padding: 22px;
   background: #f9f5ed;
 }
+
+/* Leaflet uses z-index values up to 1000 for map panes and controls. Keep all
+   modal surfaces above that independent stacking system. */
+[data-slot='dialog-overlay'],
+[data-slot='sheet-overlay'] {
+  z-index: 2000 !important;
+}
+
+[data-slot='dialog-content'],
+[data-slot='sheet-content'] {
+  z-index: 2001 !important;
+}
 .confirm-dialog [data-slot='dialog-title'] {
   font-family: var(--font-serif-cn);
   font-size: 23px;
