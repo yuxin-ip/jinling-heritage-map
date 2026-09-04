@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Camera,
   Check,
+  ChevronDown,
   ChevronRight,
   Circle,
   Clock3,
@@ -15,6 +16,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { HeritageMap } from '@/components/heritage-map';
+import { selectMapSites, type MapSelection } from '@/lib/map-selection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,6 +102,8 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('全部类别');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapSelection, setMapSelection] = useState<MapSelection>(null);
+  const [collapsedSites, setCollapsedSites] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [answers, setAnswers] = useState<Answers>({});
 
@@ -129,27 +133,65 @@ export default function Home() {
     '全部类别',
     ...Array.from(new Set(sites.map((site) => site.category))),
   ];
-  const visibleSites = resolved.filter((site) => {
-    const status = getVisitState(site);
-    const normalized = query.trim().toLowerCase();
-    const childText = site.subItems
-      ?.map((item) => `${item.name}${item.address || ''}`)
-      .join('');
-    return (
-      (!normalized ||
-        `${site.name}${site.district}${site.era}${site.address}${childText || ''}`
-          .toLowerCase()
-          .includes(normalized)) &&
-      (filter === 'all' || status === filter) &&
-      (category === '全部类别' || site.category === category)
-    );
-  });
+  const visibleSites = useMemo(
+    () =>
+      resolved.filter((site) => {
+        const status = getVisitState(site);
+        const normalized = query.trim().toLowerCase();
+        const childText = site.subItems
+          ?.map((item) => `${item.name}${item.address || ''}`)
+          .join('');
+        return (
+          (!normalized ||
+            `${site.name}${site.district}${site.era}${site.address}${childText || ''}`
+              .toLowerCase()
+              .includes(normalized)) &&
+          (filter === 'all' || status === filter) &&
+          (category === '全部类别' || site.category === category)
+        );
+      }),
+    [resolved, query, filter, category],
+  );
+  const mappedSites = useMemo(
+    () =>
+      selectMapSites(visibleSites, mapSelection).map((site) => ({
+        ...site,
+        status: getVisitState(site),
+      })),
+    [visibleSites, mapSelection],
+  );
+  const mapPointCount = mappedSites.reduce(
+    (total, site) => total + (site.subItems?.length || 1),
+    0,
+  );
+  const focusSite = resolved.find((site) => site.id === mapSelection?.siteId);
   const selectedSite = resolved.find((site) => site.id === selectedId) ?? null;
   const selectedOfficialSubItems =
     selectedSite?.subItems?.filter((item) => item.official !== false) ?? [];
   const selectedVisitedPointCount = selectedOfficialSubItems.filter(
     (item) => item.visited,
   ).length;
+
+  function focusMap(siteId: string, childName?: string) {
+    setMapSelection({ siteId, childName });
+    setSelectedId(null);
+  }
+
+  function showAll() {
+    setMapSelection(null);
+    setQuery('');
+    setFilter('all');
+    setCategory('全部类别');
+  }
+
+  function toggleChildren(siteId: string) {
+    setCollapsedSites((current) => {
+      const next = new Set(current);
+      if (next.has(siteId)) next.delete(siteId);
+      else next.add(siteId);
+      return next;
+    });
+  }
 
   function saveAnswer(id: string, value: string) {
     setAnswers((current) => {
@@ -228,7 +270,10 @@ export default function Home() {
             <Search aria-hidden="true" />
             <Input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setMapSelection(null);
+              }}
               aria-label="搜索文物保护单位"
               placeholder="搜索名称、区或年代"
             />
@@ -247,7 +292,10 @@ export default function Home() {
                   key={value}
                   size="sm"
                   variant={filter === value ? 'default' : 'outline'}
-                  onClick={() => setFilter(value)}
+                  onClick={() => {
+                    setFilter(value);
+                    setMapSelection(null);
+                  }}
                 >
                   {label}
                 </Button>
@@ -256,13 +304,19 @@ export default function Home() {
             <select
               aria-label="按类别筛选"
               value={category}
-              onChange={(event) => setCategory(event.target.value)}
+              onChange={(event) => {
+                setCategory(event.target.value);
+                setMapSelection(null);
+              }}
             >
               {categories.map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>
           </div>
+          <p className="catalog-hint">
+            点击单位查看全部子项；点击子项只看该地点。
+          </p>
           <div className="site-list">
             {visibleSites.map((site) => {
               const status = getVisitState(site);
@@ -273,32 +327,109 @@ export default function Home() {
                 (item) => item.visited,
               ).length;
               return (
-                <button
-                  className={`site-card ${selectedId === site.id ? 'selected' : ''}`}
+                <section
+                  className={`catalog-group ${mapSelection?.siteId === site.id ? 'focused' : ''}`}
                   key={site.id}
-                  onClick={() => setSelectedId(site.id)}
+                  aria-label={site.name}
                 >
-                  <StatusIcon status={status} />
-                  <span className="site-copy">
-                    <strong>{site.name}</strong>
-                    <small>
-                      {site.district} · {site.era}
-                    </small>
-                    <em>
-                      {site.subItems
-                        ? `${visitedPoints}/${officialPoints?.length} 个子项 · ${statusCopy[status].label}`
-                        : statusCopy[status].note}
-                    </em>
-                  </span>
-                  {site.photos?.[0] ? (
-                    <img src={site.photos[0]} alt="" loading="lazy" />
-                  ) : (
-                    <span className="empty-thumb">
-                      <Landmark />
+                  <button
+                    className={`site-card ${mapSelection?.siteId === site.id && !mapSelection.childName ? 'selected' : ''}`}
+                    aria-pressed={
+                      mapSelection?.siteId === site.id &&
+                      !mapSelection.childName
+                    }
+                    onClick={() => focusMap(site.id)}
+                  >
+                    <StatusIcon status={status} />
+                    <span className="site-copy">
+                      <strong>{site.name}</strong>
+                      <small>
+                        {site.district} · {site.era}
+                      </small>
+                      <em>
+                        {site.subItems
+                          ? `${visitedPoints}/${officialPoints?.length} 个子项 · ${statusCopy[status].label}`
+                          : statusCopy[status].note}
+                      </em>
                     </span>
+                    {site.photos?.[0] ? (
+                      <img src={site.photos[0]} alt="" loading="lazy" />
+                    ) : (
+                      <span className="empty-thumb">
+                        <Landmark />
+                      </span>
+                    )}
+                    <ChevronRight className="card-arrow" />
+                  </button>
+                  <div className="catalog-group-actions">
+                    {site.subItems && (
+                      <button
+                        aria-expanded={!collapsedSites.has(site.id)}
+                        aria-controls={`children-${site.id}`}
+                        onClick={() => toggleChildren(site.id)}
+                      >
+                        <ChevronDown
+                          className={
+                            collapsedSites.has(site.id) ? 'collapsed' : ''
+                          }
+                        />
+                        {collapsedSites.has(site.id) ? '展开' : '收起'}{' '}
+                        {site.subItems.length} 个子项
+                      </button>
+                    )}
+                    <button
+                      className="catalog-details"
+                      onClick={() => setSelectedId(site.id)}
+                    >
+                      照片与详情 <ChevronRight />
+                    </button>
+                  </div>
+                  {site.subItems && (
+                    <ul
+                      className="catalog-children"
+                      id={`children-${site.id}`}
+                      hidden={collapsedSites.has(site.id)}
+                    >
+                      {site.subItems.map((item) => {
+                        const childStatus = item.visited
+                          ? 'visited'
+                          : item.uncertain
+                            ? 'partial'
+                            : 'unvisited';
+                        const active =
+                          mapSelection?.siteId === site.id &&
+                          mapSelection.childName === item.name;
+                        return (
+                          <li key={item.name}>
+                            <button
+                              className={`catalog-child ${active ? 'selected' : ''}`}
+                              aria-pressed={active}
+                              onClick={() => focusMap(site.id, item.name)}
+                            >
+                              <i
+                                className={`dot ${childStatus}`}
+                                aria-hidden="true"
+                              />
+                              <span>
+                                {item.name}
+                                {item.official === false && (
+                                  <small>补充现场碑记录</small>
+                                )}
+                              </span>
+                              <em>
+                                {item.visited
+                                  ? '已到访'
+                                  : item.uncertain
+                                    ? '待确认'
+                                    : '未到访'}
+                              </em>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
-                  <ChevronRight className="card-arrow" />
-                </button>
+                </section>
               );
             })}
             {!visibleSites.length && (
@@ -316,11 +447,8 @@ export default function Home() {
           aria-label="南京全国重点文物保护单位地图"
         >
           <HeritageMap
-            sites={visibleSites.map((site) => ({
-              ...site,
-              status: getVisitState(site),
-            }))}
-            selectedId={selectedId}
+            sites={mappedSites}
+            selectedId={mapSelection?.siteId ?? null}
             onSelect={setSelectedId}
           />
           <div className="map-legend">
@@ -330,12 +458,27 @@ export default function Home() {
             </span>
             <span>
               <i className="dot partial" />
-              部分到访
+              待确认
             </span>
             <span>
               <i className="dot unvisited" />
               未到访
             </span>
+          </div>
+          <div className="map-scope">
+            <span aria-live="polite">
+              <small>
+                {mapSelection ? focusSite?.name : '当前地图'} · {mapPointCount}{' '}
+                个点位
+              </small>
+              <strong>
+                {mapSelection?.childName ||
+                  (mapSelection ? '该单位的全部点位' : '全部匹配地点')}
+              </strong>
+            </span>
+            <Button size="sm" variant="outline" onClick={showAll}>
+              显示全部
+            </Button>
           </div>
           <div className="map-note">
             <Layers3 />
@@ -414,6 +557,12 @@ export default function Home() {
                               <small>{item.note || item.address}</small>
                             )}
                           </span>
+                          <button
+                            onClick={() => focusMap(selectedSite.id, item.name)}
+                            aria-label={`只显示${item.name}`}
+                          >
+                            地图
+                          </button>
                           {item.uncertain && (
                             <button onClick={() => setConfirmOpen(true)}>
                               确认

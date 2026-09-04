@@ -18,16 +18,18 @@ type MapPoint = {
 function mapPoints(sites: MappedSite[]): MapPoint[] {
   return sites.flatMap((site) => {
     if (!site.subItems?.length) {
-      return [{
-        id: site.id,
-        parentId: site.id,
-        name: site.name,
-        parentName: site.name,
-        address: `${site.district} · ${site.address}`,
-        lat: site.lat,
-        lng: site.lng,
-        status: site.status,
-      }];
+      return [
+        {
+          id: site.id,
+          parentId: site.id,
+          name: site.name,
+          parentName: site.name,
+          address: `${site.district} · ${site.address}`,
+          lat: site.lat,
+          lng: site.lng,
+          status: site.status,
+        },
+      ];
     }
     return site.subItems.map((item, index) => ({
       id: `${site.id}-${index}`,
@@ -37,7 +39,11 @@ function mapPoints(sites: MappedSite[]): MapPoint[] {
       address: item.address || site.district,
       lat: item.lat,
       lng: item.lng,
-      status: item.visited ? 'visited' : item.uncertain ? 'partial' : 'unvisited',
+      status: item.visited
+        ? 'visited'
+        : item.uncertain
+          ? 'partial'
+          : 'unvisited',
     }));
   });
 }
@@ -90,9 +96,13 @@ export function HeritageMap({
         bounds.extend([point.lat, point.lng]);
       });
       if (points.length > 1)
-        map.fitBounds(bounds, { padding: [42, 42], maxZoom: 12 });
+        map.fitBounds(bounds, {
+          paddingTopLeft: [42, 160],
+          paddingBottomRight: [42, 70],
+          maxZoom: 16,
+        });
       else if (points.length === 1)
-        map.setView([points[0].lat, points[0].lng], 14);
+        map.setView([points[0].lat, points[0].lng], 16);
       dispose = () => map.remove();
     });
     return () => {
