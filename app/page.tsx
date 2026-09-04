@@ -17,6 +17,12 @@ import {
 } from 'lucide-react';
 import { HeritageMap } from '@/components/heritage-map';
 import { selectMapSites, type MapSelection } from '@/lib/map-selection';
+import {
+  isConfirmed,
+  parseAnswers,
+  resolveConfirmations,
+  type Answers,
+} from '@/lib/confirmations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,48 +46,15 @@ import {
   pendingConfirmations,
   photoCount,
   sites,
-  type HeritageSite,
   type VisitState,
 } from '@/lib/heritage-data';
 
 type Filter = 'all' | VisitState;
-type Answers = Record<string, string>;
 const statusCopy: Record<VisitState, { label: string; note: string }> = {
   visited: { label: '已到访', note: '照片已匹配' },
   partial: { label: '部分到访', note: '还有子项待探访' },
   unvisited: { label: '未到访', note: '尚未发现到访照片' },
 };
-
-function resolvedSite(site: HeritageSite, answers: Answers): HeritageSite {
-  if (!site.subItems) return site;
-  const confirmed = new Set<string>();
-  const wuAnswered = Boolean(answers['wu-tombs']);
-  if (site.id === 'mingxiaoling') {
-    const answer = answers['wu-tombs'];
-    if (answer === '两处都去了') {
-      confirmed.add('吴良墓');
-      confirmed.add('吴桢墓');
-    } else if (answer && answer !== '暂不确定') confirmed.add(answer);
-  }
-  if (site.id === 'southern-dynasty-stone') {
-    for (const id of ['jiangning-stone-2']) {
-      const answer = answers[id];
-      if (answer && !['暂不确定', '其他子项'].includes(answer))
-        confirmed.add(answer);
-    }
-  }
-  return {
-    ...site,
-    subItems: site.subItems.map((item) => ({
-      ...item,
-      visited: item.visited || confirmed.has(item.name),
-      uncertain:
-        item.uncertain &&
-        !confirmed.has(item.name) &&
-        !(site.id === 'mingxiaoling' && wuAnswered),
-    })),
-  };
-}
 
 function StatusIcon({ status }: { status: VisitState }) {
   return (
@@ -106,29 +79,37 @@ export default function Home() {
   const [collapsedSites, setCollapsedSites] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [answers, setAnswers] = useState<Answers>({});
+  const [answersLoaded, setAnswersLoaded] = useState(false);
+  const [confirmationError, setConfirmationError] = useState('');
 
   useEffect(() => {
     try {
       setAnswers(
-        JSON.parse(
-          localStorage.getItem('nanjing-heritage-confirmations') || '{}',
+        parseAnswers(
+          JSON.parse(
+            localStorage.getItem('nanjing-heritage-confirmations') || '{}',
+          ),
         ),
       );
     } catch {
-      /* ignore malformed local data */
+      setConfirmationError(
+        '无法读取当前浏览器的确认记录，请检查浏览器存储设置。',
+      );
+    } finally {
+      setAnswersLoaded(true);
     }
   }, []);
   const resolved = useMemo(
-    () => sites.map((site) => resolvedSite(site, answers)),
+    () => sites.map((site) => resolveConfirmations(site, answers)),
     [answers],
   );
   const visitedUnits = resolved.filter(
     (site) => getVisitState(site) !== 'unvisited',
   ).length;
-  const unresolvedCount = pendingConfirmations.filter(
-    (item) =>
-      !answers[item.id] || ['暂不确定', '其他子项'].includes(answers[item.id]),
-  ).length;
+  const unresolvedConfirmations = pendingConfirmations.filter(
+    (item) => !isConfirmed(item.id, answers[item.id]),
+  );
+  const unresolvedCount = unresolvedConfirmations.length;
   const categories = [
     '全部类别',
     ...Array.from(new Set(sites.map((site) => site.category))),
@@ -194,14 +175,17 @@ export default function Home() {
   }
 
   function saveAnswer(id: string, value: string) {
-    setAnswers((current) => {
-      const next = { ...current, [id]: value };
+    const next = { ...answers, [id]: value };
+    try {
       localStorage.setItem(
         'nanjing-heritage-confirmations',
         JSON.stringify(next),
       );
-      return next;
-    });
+      setAnswers(next);
+      setConfirmationError('');
+    } catch {
+      setConfirmationError('未能保存确认结果，请检查浏览器存储空间后重试。');
+    }
   }
 
   return (
@@ -220,9 +204,14 @@ export default function Home() {
             size="sm"
             onClick={() => setConfirmOpen(true)}
             className="confirm-button"
+            disabled={!answersLoaded}
           >
-            <TriangleAlert />
-            待你确认 {unresolvedCount}
+            {unresolvedCount ? <TriangleAlert /> : <Check />}
+            {!answersLoaded
+              ? '读取记录中'
+              : unresolvedCount
+                ? `待你确认 ${unresolvedCount}`
+                : '全部已确认'}
           </Button>
           <a
             className="source-link"
@@ -611,14 +600,22 @@ export default function Home() {
         <DialogContent className="confirm-dialog">
           <DialogHeader>
             <DialogTitle>
-              请你确认 {pendingConfirmations.length} 组子项
+              {unresolvedCount
+                ? `请你确认 ${unresolvedCount} 组子项`
+                : '全部已确认'}
             </DialogTitle>
             <DialogDescription>
               这些照片能确认到国保单位，但无法仅靠碑面或坐标准确判定具体子项。选择会自动保存在当前浏览器。
             </DialogDescription>
           </DialogHeader>
           <div className="confirmation-list">
-            {pendingConfirmations.map((item) => (
+            {confirmationError && <p role="alert">{confirmationError}</p>}
+            {!unresolvedCount && (
+              <p className="confirmation-complete">
+                已确认的项目不会再出现在待确认列表中。
+              </p>
+            )}
+            {unresolvedConfirmations.map((item) => (
               <article
                 key={item.id}
                 className={
