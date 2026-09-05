@@ -49,11 +49,11 @@ function mapPoints(sites: MappedSite[]): MapPoint[] {
 }
 export function HeritageMap({
   sites,
-  selectedId,
+  highlightSelection,
   onSelect,
 }: {
   sites: MappedSite[];
-  selectedId: string | null;
+  highlightSelection: boolean;
   onSelect: (id: string) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -82,7 +82,7 @@ export function HeritageMap({
       points.forEach((point) => {
         const icon = L.divIcon({
           className: 'heritage-marker-wrap',
-          html: `<span class="heritage-marker ${point.status} ${point.parentId === selectedId ? 'selected' : ''}"></span>`,
+          html: `<span class="heritage-marker ${point.status} ${highlightSelection ? 'selected' : ''}"></span>`,
           iconSize: [26, 26],
           iconAnchor: [13, 13],
         });
@@ -109,6 +109,6 @@ export function HeritageMap({
       cancelled = true;
       dispose?.();
     };
-  }, [sites, selectedId]);
+  }, [sites, highlightSelection]);
   return <div className="map-canvas" ref={container} />;
 }

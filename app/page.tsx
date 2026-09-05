@@ -16,7 +16,12 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { HeritageMap } from '@/components/heritage-map';
-import { selectMapSites, type MapSelection } from '@/lib/map-selection';
+import {
+  selectMapSites,
+  toggleMapSelection,
+  isMapSelected,
+  type MapSelection,
+} from '@/lib/map-selection';
 import {
   isConfirmed,
   parseAnswers,
@@ -75,7 +80,7 @@ export default function Home() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('全部类别');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mapSelection, setMapSelection] = useState<MapSelection>(null);
+  const [mapSelections, setMapSelections] = useState<MapSelection[]>([]);
   const [collapsedSites, setCollapsedSites] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [answers, setAnswers] = useState<Answers>({});
@@ -135,17 +140,22 @@ export default function Home() {
   );
   const mappedSites = useMemo(
     () =>
-      selectMapSites(visibleSites, mapSelection).map((site) => ({
+      selectMapSites(visibleSites, mapSelections).map((site) => ({
         ...site,
         status: getVisitState(site),
       })),
-    [visibleSites, mapSelection],
+    [visibleSites, mapSelections],
   );
   const mapPointCount = mappedSites.reduce(
     (total, site) => total + (site.subItems?.length || 1),
     0,
   );
-  const focusSite = resolved.find((site) => site.id === mapSelection?.siteId);
+  const selectionNames = mapSelections.map(
+    (selection) =>
+      selection.childName ||
+      resolved.find((site) => site.id === selection.siteId)?.name ||
+      '',
+  );
   const selectedSite = resolved.find((site) => site.id === selectedId) ?? null;
   const selectedOfficialSubItems =
     selectedSite?.subItems?.filter((item) => item.official !== false) ?? [];
@@ -154,12 +164,14 @@ export default function Home() {
   ).length;
 
   function focusMap(siteId: string, childName?: string) {
-    setMapSelection({ siteId, childName });
+    setMapSelections((current) =>
+      toggleMapSelection(resolved, current, { siteId, childName }),
+    );
     setSelectedId(null);
   }
 
   function showAll() {
-    setMapSelection(null);
+    setMapSelections([]);
     setQuery('');
     setFilter('all');
     setCategory('全部类别');
@@ -261,7 +273,7 @@ export default function Home() {
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setMapSelection(null);
+                setMapSelections([]);
               }}
               aria-label="搜索文物保护单位"
               placeholder="搜索名称、区或年代"
@@ -283,7 +295,7 @@ export default function Home() {
                   variant={filter === value ? 'default' : 'outline'}
                   onClick={() => {
                     setFilter(value);
-                    setMapSelection(null);
+                    setMapSelections([]);
                   }}
                 >
                   {label}
@@ -295,7 +307,7 @@ export default function Home() {
               value={category}
               onChange={(event) => {
                 setCategory(event.target.value);
-                setMapSelection(null);
+                setMapSelections([]);
               }}
             >
               {categories.map((item) => (
@@ -304,7 +316,7 @@ export default function Home() {
             </select>
           </div>
           <p className="catalog-hint">
-            点击单位查看全部子项；点击子项只看该地点。
+            点击名称选中，再点取消；单位和子项可多选。清空选择后显示全部。
           </p>
           <div className="site-list">
             {visibleSites.map((site) => {
@@ -317,16 +329,13 @@ export default function Home() {
               ).length;
               return (
                 <section
-                  className={`catalog-group ${mapSelection?.siteId === site.id ? 'focused' : ''}`}
+                  className={`catalog-group ${mapSelections.some((selection) => selection.siteId === site.id) ? 'focused' : ''}`}
                   key={site.id}
                   aria-label={site.name}
                 >
                   <button
-                    className={`site-card ${mapSelection?.siteId === site.id && !mapSelection.childName ? 'selected' : ''}`}
-                    aria-pressed={
-                      mapSelection?.siteId === site.id &&
-                      !mapSelection.childName
-                    }
+                    className={`site-card ${isMapSelected(mapSelections, site.id) ? 'selected' : ''}`}
+                    aria-pressed={isMapSelected(mapSelections, site.id)}
                     onClick={() => focusMap(site.id)}
                   >
                     <StatusIcon status={status} />
@@ -385,9 +394,11 @@ export default function Home() {
                           : item.uncertain
                             ? 'partial'
                             : 'unvisited';
-                        const active =
-                          mapSelection?.siteId === site.id &&
-                          mapSelection.childName === item.name;
+                        const active = isMapSelected(
+                          mapSelections,
+                          site.id,
+                          item.name,
+                        );
                         return (
                           <li key={item.name}>
                             <button
@@ -437,7 +448,7 @@ export default function Home() {
         >
           <HeritageMap
             sites={mappedSites}
-            selectedId={mapSelection?.siteId ?? null}
+            highlightSelection={mapSelections.length > 0}
             onSelect={setSelectedId}
           />
           <div className="map-legend">
@@ -457,12 +468,15 @@ export default function Home() {
           <div className="map-scope">
             <span aria-live="polite">
               <small>
-                {mapSelection ? focusSite?.name : '当前地图'} · {mapPointCount}{' '}
-                个点位
+                {mapSelections.length
+                  ? `多选中 · ${mapSelections.length} 项`
+                  : '当前地图'}{' '}
+                · {mapPointCount} 个点位
               </small>
-              <strong>
-                {mapSelection?.childName ||
-                  (mapSelection ? '该单位的全部点位' : '全部匹配地点')}
+              <strong title={selectionNames.join('、')}>
+                {selectionNames.length
+                  ? `${selectionNames.slice(0, 2).join('、')}${selectionNames.length > 2 ? `等 ${selectionNames.length} 项` : ''}`
+                  : '全部匹配地点'}
               </strong>
             </span>
             <Button size="sm" variant="outline" onClick={showAll}>
@@ -548,9 +562,15 @@ export default function Home() {
                           </span>
                           <button
                             onClick={() => focusMap(selectedSite.id, item.name)}
-                            aria-label={`只显示${item.name}`}
+                            aria-label={`${isMapSelected(mapSelections, selectedSite.id, item.name) ? '取消' : '选中'}${item.name}`}
                           >
-                            地图
+                            {isMapSelected(
+                              mapSelections,
+                              selectedSite.id,
+                              item.name,
+                            )
+                              ? '取消选中'
+                              : '地图选中'}
                           </button>
                           {item.uncertain && (
                             <button onClick={() => setConfirmOpen(true)}>

@@ -32,15 +32,17 @@ const { isConfirmed, parseAnswers, resolveConfirmations } = loadTypeScript(
   '../lib/confirmations.ts',
   { './heritage-data': data },
 );
-const { selectMapSites } = loadTypeScript('../lib/map-selection.ts');
+const { selectMapSites, toggleMapSelection, isMapSelected } = loadTypeScript(
+  '../lib/map-selection.ts',
+);
 
 test('overview and reset include every catalogue unit', () => {
-  assert.equal(selectMapSites(sites, null), sites);
+  assert.equal(selectMapSites(sites, []), sites);
   assert.equal(sites.length, 55);
 });
 
 test('parent selection includes all 17 burial sites, including unvisited children', () => {
-  const result = selectMapSites(sites, { siteId: 'massacre-burial' });
+  const result = selectMapSites(sites, [{ siteId: 'massacre-burial' }]);
   assert.equal(result.length, 1);
   assert.equal(result[0].subItems.length, 17);
   assert.equal(result[0].subItems.filter((item) => item.visited).length, 3);
@@ -48,10 +50,12 @@ test('parent selection includes all 17 burial sites, including unvisited childre
 
 test('child selection isolates exactly one point without changing the catalogue', () => {
   const parent = sites.find((site) => site.id === 'massacre-burial');
-  const result = selectMapSites(sites, {
-    siteId: parent.id,
-    childName: '燕子矶',
-  });
+  const result = selectMapSites(sites, [
+    {
+      siteId: parent.id,
+      childName: '燕子矶',
+    },
+  ]);
   assert.equal(result.length, 1);
   assert.equal(result[0].subItems.length, 1);
   assert.equal(result[0].subItems[0].name, '燕子矶');
@@ -61,19 +65,21 @@ test('child selection isolates exactly one point without changing the catalogue'
 
 test('city wall selection includes all sections, and an individual gate isolates one', () => {
   assert.equal(
-    selectMapSites(sites, { siteId: 'city-wall' })[0].subItems.length,
+    selectMapSites(sites, [{ siteId: 'city-wall' }])[0].subItems.length,
     22,
   );
-  const result = selectMapSites(sites, {
-    siteId: 'city-wall',
-    childName: '武定门',
-  });
+  const result = selectMapSites(sites, [
+    {
+      siteId: 'city-wall',
+      childName: '武定门',
+    },
+  ]);
   assert.equal(result[0].subItems.length, 1);
   assert.equal(result[0].subItems[0].name, '武定门');
 });
 
 test('single-point units retain their original location', () => {
-  const result = selectMapSites(sites, { siteId: 'human-fossil' });
+  const result = selectMapSites(sites, [{ siteId: 'human-fossil' }]);
   assert.equal(result.length, 1);
   assert.equal(
     result[0],
@@ -82,12 +88,61 @@ test('single-point units retain their original location', () => {
 });
 
 test('invalid or filtered-out selections never leak unrelated markers', () => {
-  assert.equal(selectMapSites(sites, { siteId: 'missing' }).length, 0);
+  assert.equal(selectMapSites(sites, [{ siteId: 'missing' }]).length, 0);
   assert.equal(
-    selectMapSites(sites, { siteId: 'city-wall', childName: 'missing' }).length,
+    selectMapSites(sites, [{ siteId: 'city-wall', childName: 'missing' }])
+      .length,
     0,
   );
-  assert.equal(selectMapSites([], { siteId: 'city-wall' }).length, 0);
+  assert.equal(selectMapSites([], [{ siteId: 'city-wall' }]).length, 0);
+});
+
+test('clicking the last selected name again returns to overview', () => {
+  const target = { siteId: 'city-wall' };
+  const selected = toggleMapSelection(sites, [], target);
+  assert.equal(selectMapSites(sites, selected).length, 1);
+  const cleared = toggleMapSelection(sites, selected, target);
+  assert.equal(cleared.length, 0);
+  assert.equal(selectMapSites(sites, cleared), sites);
+});
+
+test('multiple parents and individual children form a deduplicated union', () => {
+  let selected = toggleMapSelection(sites, [], { siteId: 'city-wall' });
+  selected = toggleMapSelection(sites, selected, {
+    siteId: 'massacre-burial',
+    childName: '燕子矶',
+  });
+  const result = selectMapSites(sites, selected);
+  assert.equal(result.length, 2);
+  assert.equal(
+    result.reduce((sum, site) => sum + site.subItems.length, 0),
+    23,
+  );
+  assert.equal(isMapSelected(selected, 'city-wall', '武定门'), true);
+  assert.equal(isMapSelected(selected, 'massacre-burial'), false);
+  selected = toggleMapSelection(sites, selected, { siteId: 'city-wall' });
+  assert.equal(selectMapSites(sites, selected)[0].subItems[0].name, '燕子矶');
+});
+
+test('excluding a child from a selected parent preserves siblings and other units', () => {
+  let selected = [{ siteId: 'city-wall' }, { siteId: 'human-fossil' }];
+  selected = toggleMapSelection(sites, selected, {
+    siteId: 'city-wall',
+    childName: '武定门',
+  });
+  assert.equal(isMapSelected(selected, 'city-wall', '武定门'), false);
+  assert.equal(isMapSelected(selected, 'city-wall', '玄武门'), true);
+  assert.equal(
+    selectMapSites(sites, selected).find((site) => site.id === 'city-wall')
+      .subItems.length,
+    21,
+  );
+  selected = toggleMapSelection(sites, selected, {
+    siteId: 'city-wall',
+    childName: '武定门',
+  });
+  assert.equal(isMapSelected(selected, 'city-wall'), true);
+  assert.equal(selected.length, 2);
 });
 
 test('completed answers disappear from pending, undecided and invalid answers remain', () => {
