@@ -35,6 +35,73 @@ const { isConfirmed, parseAnswers, resolveConfirmations } = loadTypeScript(
 const { selectMapSites, toggleMapSelection, isMapSelected } = loadTypeScript(
   '../lib/map-selection.ts',
 );
+const { applyVisitRecords, recordStatistics, pointKey, recordKey } =
+  loadTypeScript('../lib/visit-records.ts');
+
+test('no-photo visits count as visited and closed access never invents a visit', () => {
+  const site = sites.find((item) => item.id === 'drum-tower');
+  const key = pointKey(site.id);
+  const closed = applyVisitRecords(
+    site,
+    { [recordKey(key, 'access')]: 'closed' },
+    [],
+  );
+  assert.equal(data.getVisitState(closed), 'unvisited');
+  const visited = applyVisitRecords(
+    site,
+    {
+      [recordKey(key, 'visit')]: 'visited-no-photo',
+      [recordKey(key, 'access')]: 'closed',
+    },
+    [],
+  );
+  assert.equal(data.getVisitState(visited), 'visited');
+  const stats = recordStatistics([visited]);
+  assert.equal(stats.noPhoto, 1);
+  assert.equal(stats.closed, 1);
+});
+
+test('new child photo visits only that child, adds to gallery and counts once', () => {
+  const site = sites.find((item) => item.id === 'massacre-burial');
+  const photo = {
+    id: 'test',
+    point_key: pointKey(site.id, '燕子矶'),
+    storage_path: 'test.jpg',
+    filename: 'test.jpg',
+    url: 'https://example.test/photo',
+  };
+  const result = applyVisitRecords(site, {}, [photo]);
+  assert.equal(result.subItems.filter((item) => item.visited).length, 4);
+  assert.equal(result.photos.length, 4);
+  assert.equal(
+    result.subItems.find((item) => item.name === '燕子矶').photos.length,
+    1,
+  );
+  assert.equal(recordStatistics([result]).noPhoto, 0);
+});
+
+test('unit-level visit must not mark every child as visited', () => {
+  const site = sites.find((item) => item.id === 'eighth-route-office');
+  const result = applyVisitRecords(
+    site,
+    { [recordKey(pointKey(site.id), 'visit')]: 'visited-no-photo' },
+    [],
+  );
+  assert.equal(data.getVisitState(result), 'partial');
+  assert.equal(recordStatistics([result]).visited, 0);
+});
+
+test('unvisited correction preserves photos and automatic mode restores evidence', () => {
+  const site = sites.find((item) => item.id === 'human-fossil');
+  const key = recordKey(pointKey(site.id), 'visit');
+  const corrected = applyVisitRecords(site, { [key]: 'unvisited' }, []);
+  assert.equal(data.getVisitState(corrected), 'unvisited');
+  assert.equal(corrected.photos.length, site.photos.length);
+  assert.equal(
+    data.getVisitState(applyVisitRecords(site, { [key]: 'auto' }, [])),
+    'visited',
+  );
+});
 
 test('overview and reset include every catalogue unit', () => {
   assert.equal(selectMapSites(sites, []), sites);

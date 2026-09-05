@@ -16,6 +16,9 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { HeritageMap } from '@/components/heritage-map';
+import { CloudAccount, RecordEditor } from '@/components/cloud-records';
+import { useHeritageCloud } from '@/hooks/use-heritage-cloud';
+import { applyVisitRecords, recordStatistics } from '@/lib/visit-records';
 import {
   selectMapSites,
   toggleMapSelection,
@@ -49,14 +52,13 @@ import {
   getVisitState,
   officialSource,
   pendingConfirmations,
-  photoCount,
   sites,
   type VisitState,
 } from '@/lib/heritage-data';
 
 type Filter = 'all' | VisitState;
 const statusCopy: Record<VisitState, { label: string; note: string }> = {
-  visited: { label: '已到访', note: '照片已匹配' },
+  visited: { label: '已到访', note: '已有到访记录' },
   partial: { label: '部分到访', note: '还有子项待探访' },
   unvisited: { label: '未到访', note: '尚未发现到访照片' },
 };
@@ -83,13 +85,27 @@ export default function Home() {
   const [mapSelections, setMapSelections] = useState<MapSelection[]>([]);
   const [collapsedSites, setCollapsedSites] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [localAnswers, setLocalAnswers] = useState<Answers>({});
+  const cloud = useHeritageCloud();
+  const answers = useMemo(
+    () =>
+      cloud.user
+        ? parseAnswers(
+            Object.fromEntries(
+              Object.entries(cloud.records)
+                .filter(([key]) => key.startsWith('confirmation:'))
+                .map(([key, value]) => [key.slice(13), value]),
+            ),
+          )
+        : localAnswers,
+    [cloud.user, cloud.records, localAnswers],
+  );
   const [answersLoaded, setAnswersLoaded] = useState(false);
   const [confirmationError, setConfirmationError] = useState('');
 
   useEffect(() => {
     try {
-      setAnswers(
+      setLocalAnswers(
         parseAnswers(
           JSON.parse(
             localStorage.getItem('nanjing-heritage-confirmations') || '{}',
@@ -105,12 +121,22 @@ export default function Home() {
     }
   }, []);
   const resolved = useMemo(
-    () => sites.map((site) => resolveConfirmations(site, answers)),
-    [answers],
+    () =>
+      sites.map((site) =>
+        applyVisitRecords(
+          resolveConfirmations(site, answers),
+          cloud.records,
+          cloud.photos,
+        ),
+      ),
+    [answers, cloud.records, cloud.photos],
   );
   const visitedUnits = resolved.filter(
     (site) => getVisitState(site) !== 'unvisited',
   ).length;
+  const pointStats = recordStatistics(resolved);
+  const photoCount = new Set(resolved.flatMap((site) => site.photos || []))
+    .size;
   const unresolvedConfirmations = pendingConfirmations.filter(
     (item) => !isConfirmed(item.id, answers[item.id]),
   );
@@ -186,14 +212,26 @@ export default function Home() {
     });
   }
 
-  function saveAnswer(id: string, value: string) {
+  async function saveAnswer(id: string, value: string) {
+    if (cloud.configured) {
+      if (!cloud.user || !cloud.ready) {
+        setConfirmationError(
+          '请先通过顶部“跨设备同步”登录并读取记录，再确认。',
+        );
+        return;
+      }
+      if (await cloud.save(`confirmation:${id}`, value))
+        setConfirmationError('');
+      else setConfirmationError('尚未保存到云端，请检查网络后重试。');
+      return;
+    }
     const next = { ...answers, [id]: value };
     try {
       localStorage.setItem(
         'nanjing-heritage-confirmations',
         JSON.stringify(next),
       );
-      setAnswers(next);
+      setLocalAnswers(next);
       setConfirmationError('');
     } catch {
       setConfirmationError('未能保存确认结果，请检查浏览器存储空间后重试。');
@@ -211,12 +249,13 @@ export default function Home() {
           <h1>金陵访古图</h1>
         </div>
         <div className="header-actions">
+          <CloudAccount cloud={cloud} localAnswers={localAnswers} />
           <Button
             variant="outline"
             size="sm"
             onClick={() => setConfirmOpen(true)}
             className="confirm-button"
-            disabled={!answersLoaded}
+            disabled={!answersLoaded || Boolean(cloud.user && !cloud.ready)}
           >
             {unresolvedCount ? <TriangleAlert /> : <Check />}
             {!answersLoaded
@@ -239,7 +278,7 @@ export default function Home() {
       <section className="summary-strip" aria-label="到访统计">
         <div>
           <strong>{visitedUnits}</strong>
-          <span>处已留下足迹</span>
+          <span>处已到访（含无照片）</span>
         </div>
         <div>
           <strong>{55 - visitedUnits}</strong>
@@ -266,6 +305,23 @@ export default function Home() {
               <h2>南京名录</h2>
             </div>
             <span className="progress-number">{visibleSites.length} / 55</span>
+          </div>
+          <div className="record-statistics" aria-label="点位统计">
+            <span>
+              已到访{' '}
+              <b>
+                {pointStats.visited}/{pointStats.total}
+              </b>
+            </span>
+            <span>
+              去过无照片 <b>{pointStats.noPhoto}</b>
+            </span>
+            <span>
+              不对外开放 <b>{pointStats.closed}</b>
+            </span>
+            <small>
+              按地图子项统计，含城墙拆分点；单位级未知子项记录不计入此处。
+            </small>
           </div>
           <div className="search-wrap">
             <Search aria-hidden="true" />
@@ -379,7 +435,7 @@ export default function Home() {
                       className="catalog-details"
                       onClick={() => setSelectedId(site.id)}
                     >
-                      照片与详情 <ChevronRight />
+                      照片与记录 <ChevronRight />
                     </button>
                   </div>
                   {site.subItems && (
@@ -414,6 +470,9 @@ export default function Home() {
                                 {item.name}
                                 {item.official === false && (
                                   <small>补充现场碑记录</small>
+                                )}
+                                {item.access === 'closed' && (
+                                  <small>不对外开放</small>
                                 )}
                               </span>
                               <em>
@@ -519,6 +578,17 @@ export default function Home() {
                     {selectedSite.address}
                   </span>
                 </div>
+                <RecordEditor
+                  key={`${selectedSite.id}:${mapSelections.length === 1 ? mapSelections[0].childName || '' : ''}`}
+                  cloud={cloud}
+                  site={selectedSite}
+                  initialChild={
+                    mapSelections.length === 1 &&
+                    mapSelections[0].siteId === selectedSite.id
+                      ? mapSelections[0].childName || ''
+                      : ''
+                  }
+                />
                 {selectedSite.subItems && (
                   <section className="subitems">
                     <div className="section-title">
@@ -558,6 +628,9 @@ export default function Home() {
                             {item.name}
                             {(item.address || item.note) && (
                               <small>{item.note || item.address}</small>
+                            )}
+                            {item.access === 'closed' && (
+                              <small>不对外开放</small>
                             )}
                           </span>
                           <button
@@ -625,7 +698,10 @@ export default function Home() {
                 : '全部已确认'}
             </DialogTitle>
             <DialogDescription>
-              这些照片能确认到国保单位，但无法仅靠碑面或坐标准确判定具体子项。选择会自动保存在当前浏览器。
+              这些照片能确认到国保单位，但需要你判定具体子项。
+              {cloud.configured
+                ? '登录后，确认结果保存到云端。'
+                : '当前确认结果保存在本浏览器；同步启用后可以导入。'}
             </DialogDescription>
           </DialogHeader>
           <div className="confirmation-list">
@@ -654,6 +730,7 @@ export default function Home() {
                       <Button
                         key={option}
                         size="sm"
+                        disabled={cloud.busy}
                         variant={
                           answers[item.id] === option ? 'default' : 'outline'
                         }

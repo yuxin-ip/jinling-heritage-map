@@ -10,6 +10,7 @@ export type SubItem = {
   photos?: string[];
   note?: string;
   official?: boolean;
+  access?: 'unknown' | 'open' | 'closed';
 };
 
 export type HeritageSite = {
@@ -28,6 +29,8 @@ export type HeritageSite = {
   lng: number;
   photos?: string[];
   subItems?: SubItem[];
+  visited?: boolean;
+  access?: 'unknown' | 'open' | 'closed';
 };
 
 const asset = (path: string) => `${import.meta.env.BASE_URL || '/'}${path}`;
@@ -776,11 +779,11 @@ export function getVisitState(site: HeritageSite): VisitState {
   if (site.subItems?.length) {
     const officialItems = site.subItems.filter((item) => item.official !== false);
     const visited = officialItems.filter((item) => item.visited).length;
-    if (visited === officialItems.length) return 'visited';
-    if (visited > 0 || site.photos?.length) return 'partial';
+    if (officialItems.length && visited === officialItems.length) return 'visited';
+    if (visited > 0 || (site.visited ?? Boolean(site.photos?.length))) return 'partial';
     return 'unvisited';
   }
-  return site.photos?.length ? 'visited' : 'unvisited';
+  return (site.visited ?? Boolean(site.photos?.length)) ? 'visited' : 'unvisited';
 }
 
 export const photoCount = new Set(sites.flatMap((site) => site.photos ?? []))

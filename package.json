@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "build:github": "vite build --config vite.github.config.ts",
+    "build:github": "node scripts/check-cloud-config.mjs && vite build --config vite.github.config.ts",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
     "format": "oxfmt"
@@ -16,6 +16,7 @@
   "dependencies": {
     "@base-ui/react": "1.7.0",
     "@shadcn/react": "0.3.0",
+    "@supabase/supabase-js": "^2.115.0",
     "@types/leaflet": "^1.9.22",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
